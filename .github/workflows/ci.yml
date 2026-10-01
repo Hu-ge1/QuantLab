@@ -41,7 +41,9 @@ jobs:
         run: pip install -r backend/requirements.txt
 
       - name: 语法检查
-        run: python -m compileall -q backend
+        # -x backups: backend/data/studio/backups/ 是运行时目录(已 gitignore)，
+        # 全新检出里不存在；排除它让本地与 CI 的检查范围保持一致，见 CONTRIBUTING.md。
+        run: python -m compileall -q backend -x 'backups'
 
       # 这一步同时验证「全新克隆、未配置任何路径」的机器能否加载应用。
       # main.py 在模块级就会初始化数据库、尝试从旧 studio 迁移、加载桥接

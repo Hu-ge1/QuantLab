@@ -1,0 +1,29 @@
+# 与 .gitattributes 保持一致：文本用 LF，Windows 批处理用 CRLF。
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{js,jsx,ts,tsx,json,jsonc,css,scss,html,yml,yaml,vue}]
+indent_size = 2
+
+[*.{bat,cmd}]
+end_of_line = crlf
+
+[*.{md,markdown}]
+# 行尾两个空格在 Markdown 里是「硬换行」，不能被自动清理
+trim_trailing_whitespace = false
+
+[*.{py,pyi}]
+indent_size = 4
+
+[{Makefile,makefile}]
+indent_style = tab
+
+[*.{png,jpg,jpeg,gif,webp,ico,pdf,woff,woff2,ttf}]
+insert_final_newline = false
