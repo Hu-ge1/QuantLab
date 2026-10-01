@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# 工作流只需要读代码，不写入仓库
+permissions:
+  contents: read
+
+# 同一分支上的旧运行自动取消，避免排队
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: 后端 · Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.10 是 README 声明的最低版本，3.12 是当前主流
+        python-version: ["3.10", "3.12"]
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: 安装依赖
+        run: pip install -r backend/requirements.txt
+
+      - name: 语法检查
+        run: python -m compileall -q backend
+
+      # 这一步同时验证「全新克隆、未配置任何路径」的机器能否加载应用。
+      # main.py 在模块级就会初始化数据库、尝试从旧 studio 迁移、加载桥接
+      # 持久化、启动注册表看门狗线程；QMT 路径全部未配置时必须静默降级，
+      # 而不是抛异常。这就是脱敏改造后要守住的底线。
+      - name: 应用可加载性自检
+        working-directory: backend
+        run: python -c "import main; print('OK:', main.app.title, main.app.version)"
+
+      - name: 启动服务并健康检查
+        working-directory: backend
+        run: |
+          nohup python main.py > /tmp/quantlab.log 2>&1 &
+          for i in $(seq 1 45); do
+            if curl -sf -m 2 http://127.0.0.1:8000/api/health | grep -q 'quant-lab'; then
+              echo "健康检查通过："
+              curl -s http://127.0.0.1:8000/api/health
+              echo
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "服务未能在 45 秒内就绪，日志如下："
+          cat /tmp/quantlab.log
+          exit 1
+
+  frontend:
+    name: 前端 · 类型检查与构建
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 安装依赖
+        working-directory: frontend
+        run: npm ci
+
+      # build 脚本是 tsc -b && vite build，类型错误会直接让 CI 失败
+      - name: 类型检查与构建
+        working-directory: frontend
+        run: npm run build

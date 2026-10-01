@@ -1,0 +1,106 @@
+name: Bug 反馈
+description: 报告一个可复现的问题
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |-
+        ### 提交前请先删除敏感信息
+
+        QuantLab 涉及真实账户与模型密钥，**请勿粘贴**：
+
+        - 大模型 API Key（`sk-` 开头的字符串）
+        - 桥接 Token（`bridge_token`）
+        - 资金账号、券商名称
+        - 含用户名的本机绝对路径（如 `C:\Users\<你的用户名>\...`）
+
+        粘贴前请把上述内容替换为 `***`。
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 问题描述
+      description: 实际发生了什么？你期望发生什么？
+      placeholder: |-
+        实际：
+        期望：
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 尽量给出最小可复现步骤
+      placeholder: |-
+        1. 打开「策略工坊」
+        2. 选择……
+        3. 点击……
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 涉及模块
+      description: 可多选
+      multiple: true
+      options:
+        - 策略工坊 / 回测
+        - 贝叶斯决策引擎
+        - 策略自进化引擎
+        - 持仓管理
+        - 行情数据源（akshare / demo）
+        - QMT 桥接（实盘接入）
+        - AI 对话
+        - 启动器 / 部署
+        - 前端界面
+        - 其他
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: 操作系统
+      placeholder: Windows 11 / macOS 14 / Ubuntu 22.04
+    validations:
+      required: true
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python 版本
+      description: 执行 `python -V` 获取
+      placeholder: "3.11.5"
+    validations:
+      required: true
+
+  - type: input
+    id: commit
+    attributes:
+      label: 版本 / 提交号
+      description: 在项目目录执行 `git rev-parse --short HEAD` 获取
+      placeholder: 68704ea
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 相关日志
+      description: 后端控制台输出，已脱敏
+      render: shell
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: 自查
+      options:
+        - label: 我已搜索过现有 issue，没有重复
+          required: true
+        - label: 我已删除日志和截图中的密钥、账号、券商名与本机路径
+          required: true

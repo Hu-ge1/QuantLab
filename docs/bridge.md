@@ -536,9 +536,16 @@ threading.Thread(target=qmt_bridge.registry_watchdog, daemon=True).start()
 
 **② 备份旧版**：如果目标文件已存在，先拷到 `data/studio/backups/QMT可视化桥接_YYYYmmdd_HHMMSS.py`。
 
-**③ 按 GBK 写入**：`fp.write_bytes(code.encode("gbk", errors="replace"))`。QMT 的策略解释器对 UTF-8 中文字符串字面量支持不可靠，GBK 是本机的实际约定。
+**③ 按 GBK 转码写入**：`encode_strategy_for_qmt()` 把源码转成 QMT 能解析的字节。QMT 的策略解释器对 UTF-8 中文字符串字面量支持不可靠，GBK 是实际约定。
 
-> 注意编码是在**部署环节**才变的：仓库里的 `QMT可视化桥接.py` 是 UTF-8（可读、可 diff、跨平台），写进 QMT 目录时转成 GBK，首行 `#coding:gbk` 随之生效。所以改桥接脚本时在仓库内按 UTF-8 编辑即可，不需要手动转码。
+> **编码是在部署环节才变的**：仓库里的策略模板统一存 UTF-8（可读、可 diff，能被 `compileall` 与 IDE 正常解析），写进 QMT 目录时才转 GBK。
+>
+> 这里有个两个方向都会踩的坑，值得单独说：
+>
+> - 源文件**写着 `#coding:gbk` 声明、内容却是 UTF-8** → Python 按声明去解码，直接 `SyntaxError: 'gbk' codec can't decode byte 0xaf`。任何 `compileall`、IDE 索引、lint 都会失败。
+> - 反过来，**转成 GBK 字节流却不带任何编码声明** → Python 3 按 UTF-8 解码，中文全变乱码。
+>
+> 所以模板一律用描述性注释开头（**不写 `coding` 声明**），由 `encode_strategy_for_qmt()` 在写入 QMT 前补上 `#coding:gbk`。改桥接脚本时在仓库内按 UTF-8 编辑即可，不要手动加编码声明。
 
 **④ 注册模型**：调 `register_model()` 写进 `indexUserConfig.xml`。
 
@@ -597,7 +604,7 @@ threading.Thread(target=qmt_bridge.registry_watchdog, daemon=True).start()
 | **不查节假日** | `trading_phase()` 只看星期和时刻 | 节假日会放行下单，由柜台拒单 |
 | **指令无重试** | inflight 状态的指令不自动重发 | 极端情况下需人工核对 QMT 委托列表 |
 | **延迟下限 2 秒** | 轮询模型，非推送 | 不适合日内高频 |
-| **GBK 编码约束** | 桥接策略按 GBK 写入 | 策略源码里避免生僻字/emoji |
+| **GBK 编码约束** | 写入 QMT 的策略按 GBK 转码（`errors="replace"`） | 策略源码里避免生僻字与 emoji，会被替换成 `?` |
 | **单机假设** | 只监听 `127.0.0.1`，token 明文存放在本地 settings | 不可直接暴露公网 |
 | **空 token 放行** | `check_bridge_token()` 空值返回 True | 不要清空 token 后暴露端口 |
 | **看门狗周期 60 秒** | 注册表被覆盖后最长 1 分钟才恢复 | 期间 QMT 策略列表看不到该模型 |
@@ -710,12 +717,13 @@ git log --all --format='%an <%ae> %cn <%ce>' | sort -u
 | 项 | 状态 |
 |---|---|
 | 独立仓库 | 已在项目目录 `git init`（分支 `main`），不再受 C 盘根目录误建仓库影响 |
-| 首次提交 | 已完成，92 个文件 |
-| 提交身份 | 作者/提交者邮箱已改为 GitHub noreply 形式（`<用户名>@users.noreply.github.com`），真实邮箱不进提交历史 |
+| 提交身份 | 作者/提交者邮箱为 `288491564+Hu-ge1@users.noreply.github.com`，真实邮箱不进提交历史 |
 | `.gitattributes` | 已加：`*.bat` / `*.cmd` 强制 CRLF，其余文本 LF |
-| 远程仓库 | **尚未配置** — 需要你先在 GitHub 建空仓库（不要勾选 Add README / .gitignore / license），再 `git remote add origin` |
+| 远程仓库 | 已推送（`origin` → `https://github.com/Hu-ge1/QuantLab`，默认分支 `main`），当前为**私有** |
 | LICENSE | 已加 MIT（署名 `QuantLab Contributors`） |
 | `frontend-grid/` | 已清理（只有陈旧构建产物、无源码、无引用），`.gitignore` 中对应规则同步移除 |
+| CI | `.github/workflows/ci.yml`：后端在 Python 3.10 / 3.12 上编译、加载自检、启动健康检查；前端在 Node 20 上构建 |
+| Issue / PR 模板 | `.github/ISSUE_TEMPLATE/` 与 `.github/PULL_REQUEST_TEMPLATE.md`，模板内嵌「提交前先删密钥与券商名」提醒 |
 
 > **已排查并处理的一处环境隐患**：本机 `C:\` 根目录曾存在一个误建的 `.git`（在 C 盘根目录误执行 `git init` 所致）。核查结果：**0 个提交、`objects/` 为 0 字节、`refs/` 为空、无 remote**；仅有的一条 worktree 注册指向一个**早已删除的临时目录**，另有一个僵尸 `index.lock`。该目录已移出（备份保留在仓库之外，可随时恢复），C 盘根目录现在不再是 git 仓库。
 >
