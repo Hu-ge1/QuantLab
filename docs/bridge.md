@@ -686,13 +686,14 @@ if not legacy_root:
 git ls-files | grep -E "\.db$|studio/(bridge_state|signals|daily_reports|ticks_history|order_count|command_queue|risk_state|trading_audit|watchlist|qmt_models)\.json$|^logs/|node_modules|/dist/"
 
 # 2. 全历史扫描可疑字符串（含已删除的提交）—— 最关键的一条
-git log -p --all | grep -nE "<券商名>|bridge_token|api_key|sk-[A-Za-z0-9]{20,}" | head -40
+#    按「通用特征」搜，不要把自己的券商名/路径写进扫描式里，否则扫描式本身又成了泄漏点
+git log -p --all | grep -nE "bridge_token|api_key|sk-[A-Za-z0-9]{20,}|[A-Za-z]:[\\\\/]Users" | head -40
 
 # 3. 确认忽略规则生效（应列出 data/ 与 logs/ 下的运行态文件）
 git status --ignored --short | grep -E "data/|logs/"
 
-# 4. 确认源码里没有残留的本机绝对路径
-grep -rnE "[A-Za-z]:\\\\Users\\\\|<券商名>|\<工具目录>" backend/ --include="*.py"
+# 4. 确认源码里没有残留的本机绝对路径（Windows 盘符路径）
+grep -rnE "[A-Za-z]:\\\\" backend/ frontend/src/
 
 # 5. 确认提交身份没泄漏真实邮箱（应只剩 noreply 形式）
 git log --all --format='%an <%ae> %cn <%ce>' | sort -u
