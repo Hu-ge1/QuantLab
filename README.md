@@ -6,7 +6,7 @@
 >
 > **一个应用、一个端口（:8000）。行情来自 akshare 免费接口，无需注册任何账号。**
 
-![Python](https://img.shields.io/badge/Python-3.10+-blue) ![FastAPI](https://img.shields.io/badge/FastAPI-009688) ![React](https://img.shields.io/badge/React-18-61dafb) ![License](https://img.shields.io/badge/License-MIT-green)
+[![CI](https://github.com/Hu-ge1/QuantLab/actions/workflows/ci.yml/badge.svg)](https://github.com/Hu-ge1/QuantLab/actions/workflows/ci.yml) ![Python](https://img.shields.io/badge/Python-3.10+-blue) ![FastAPI](https://img.shields.io/badge/FastAPI-009688) ![React](https://img.shields.io/badge/React-18-61dafb) ![License](https://img.shields.io/badge/License-MIT-green)
 
 ---
 
