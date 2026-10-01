@@ -1,0 +1,124 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: #080f1e;
+  color: #e2e8f0;
+  font-family: Inter, 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 细滚动条 */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #1e2d47;
+  border-radius: 3px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #2d4a72;
+}
+
+/* 暗色 Markdown 排版 */
+.prose-dark {
+  font-size: 14px;
+  line-height: 1.7;
+  word-break: break-word;
+}
+.prose-dark h1,
+.prose-dark h2,
+.prose-dark h3 {
+  font-weight: 600;
+  margin: 12px 0 6px;
+  color: #e2e8f0;
+}
+.prose-dark h1 { font-size: 17px; }
+.prose-dark h2 { font-size: 15px; }
+.prose-dark h3 { font-size: 14px; }
+.prose-dark p { margin: 6px 0; }
+.prose-dark ul,
+.prose-dark ol { margin: 6px 0; padding-left: 20px; }
+.prose-dark ul { list-style: disc; }
+.prose-dark ol { list-style: decimal; }
+.prose-dark li { margin: 2px 0; }
+.prose-dark code {
+  background: #1e2d47;
+  color: #7dd3fc;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
+  font-size: 12.5px;
+}
+.prose-dark pre {
+  background: #0d1829;
+  border: 1px solid #1e2d47;
+  border-radius: 8px;
+  padding: 12px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+.prose-dark pre code {
+  background: transparent;
+  color: #e2e8f0;
+  padding: 0;
+}
+.prose-dark blockquote {
+  border-left: 3px solid #3b82f6;
+  padding-left: 10px;
+  color: #94a3b8;
+  margin: 8px 0;
+}
+.prose-dark a { color: #3b82f6; text-decoration: underline; }
+.prose-dark table { border-collapse: collapse; margin: 8px 0; width: 100%; }
+.prose-dark th,
+.prose-dark td {
+  border: 1px solid #1e2d47;
+  padding: 5px 10px;
+  text-align: left;
+  font-size: 13px;
+}
+.prose-dark th { background: #1e2d47; }
+.prose-dark tr:hover td { background: #111e33; }
+
+/* 数字统一等宽 */
+.num {
+  font-family: 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+@layer components {
+  .input {
+    @apply mt-1 w-full rounded-lg border border-border bg-surface px-2.5 py-2 text-xs text-text-primary outline-none focus:border-accent/50;
+  }
+}
+
+/* 流式输出光标 */
+.streaming-cursor::after {
+  content: '▋';
+  color: #3b82f6;
+  animation: blink 1s step-end infinite;
+}
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+/* recharts 暗色 tooltip */
+.recharts-default-tooltip {
+  background: #111e33 !important;
+  border: 1px solid #1e2d47 !important;
+  border-radius: 8px !important;
+}
+
+.monaco-container {
+  border-radius: 8px;
+  overflow: hidden;
+}

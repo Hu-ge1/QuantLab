@@ -1,0 +1,220 @@
+{
+  "categories": ["打板追涨", "趋势波段", "轮动对冲", "网格套利", "选股工具", "风控工具"],
+  "templates": [
+    {
+      "id": "first_to_second",
+      "name": "首板进二板(龙头战法)",
+      "emoji": "🐉",
+      "category": "打板追涨",
+      "desc": "昨日主板首板涨停股,今日满足高开与量比条件时开盘买入,博取连板溢价;含情绪周期仓位联动。",
+      "fields": [
+        {"key": "gap_min", "label": "最低高开幅度", "type": "text", "value": "3%", "hint": "如 3%"},
+        {"key": "gap_max", "label": "最高高开幅度", "type": "text", "value": "7%"},
+        {"key": "amount_range", "label": "昨日成交额区间", "type": "text", "value": "5000万 ~ 25亿"},
+        {"key": "vr_range", "label": "昨日量比区间", "type": "text", "value": "0.8 ~ 3.0"},
+        {"key": "max_pos", "label": "最大同时持仓", "type": "number", "value": "2"},
+        {"key": "stop_loss", "label": "止损比例", "type": "text", "value": "5%"},
+        {"key": "hold_days", "label": "最长持有天数", "type": "number", "value": "5"},
+        {"key": "stage_link", "label": "情绪周期控仓位", "type": "select", "options": ["是(退潮空仓)", "否"], "value": "是(退潮空仓)"}
+      ],
+      "requirement": "主板首板进二板策略:昨日沪深主板(600/601/603/605/000/001/002/003,排除ST/退市)首板涨停、成交额{amount_range}、量比{vr_range}的股票,今日高开{gap_min}~{gap_max}时以开盘价买入,按高开度与量比打分取前{max_pos}名;止损{stop_loss},不封二板次日走,最长持有{hold_days}天;情绪周期仓位联动:{stage_link}。"
+    },
+    {
+      "id": "limitup_review",
+      "name": "涨停复盘情绪统计",
+      "emoji": "📊",
+      "category": "打板追涨",
+      "desc": "每日收盘统计涨停/跌停/炸板/连板高度,判定情绪周期阶段,只输出日志不下单。",
+      "fields": [
+        {"key": "sector", "label": "统计范围", "type": "select", "options": ["沪深A股", "沪深主板", "沪深300"], "value": "沪深A股"},
+        {"key": "stages", "label": "阶段划分", "type": "text", "value": "冰点/退潮/分歧/启动/发酵/高潮"},
+        {"key": "extra_out", "label": "额外输出", "type": "text", "value": "连板天梯(每层个股代码与名称)"}
+      ],
+      "requirement": "每日收盘后对{sector}做涨停复盘统计:涨停家数、跌停家数、炸板率、最高连板数、连板天梯,并把市场判定为{stages}中的某个阶段;额外输出:{extra_out}。只打印统计日志,绝不下单。"
+    },
+    {
+      "id": "auction_grab",
+      "name": "集合竞价抢筹",
+      "emoji": "⏰",
+      "category": "打板追涨",
+      "desc": "9:25 竞价结束后按竞价涨幅与竞价量比筛股,开盘快速买入。",
+      "fields": [
+        {"key": "pool", "label": "标的池", "type": "text", "value": "昨日涨停股(含连板)"},
+        {"key": "gap", "label": "竞价涨幅范围", "type": "text", "value": "2% ~ 6%"},
+        {"key": "vol_ratio", "label": "竞价量比下限", "type": "text", "value": "5"},
+        {"key": "pos_size", "label": "单票仓位", "type": "text", "value": "可用资金的 20%"},
+        {"key": "exit_rule", "label": "卖出规则", "type": "text", "value": "当日冲高回落破均价卖出,否则次日开盘卖"}
+      ],
+      "requirement": "集合竞价策略:标的池为{pool};9:25竞价结束后筛选竞价涨幅{gap}、竞价量比≥{vol_ratio}的股票,9:30开盘以最新价买入,单票仓位{pos_size};卖出规则:{exit_rule}。注意T+1约束与涨停价无法成交的说明。"
+    },
+    {
+      "id": "dual_ma",
+      "name": "双均线趋势",
+      "emoji": "📈",
+      "category": "趋势波段",
+      "desc": "经典金叉死叉策略,适合指数ETF与趋势票入门回测。",
+      "fields": [
+        {"key": "pool", "label": "标的池", "type": "text", "value": "沪深300成分股"},
+        {"key": "fast", "label": "快线周期", "type": "number", "value": "5"},
+        {"key": "slow", "label": "慢线周期", "type": "number", "value": "20"},
+        {"key": "pos", "label": "单票仓位", "type": "text", "value": "可用资金的 30%"},
+        {"key": "stop", "label": "额外止损", "type": "text", "value": "亏损 8% 强制离场"}
+      ],
+      "requirement": "双均线策略:{pool}中{fast}日均线上穿{slow}日均线买入、下穿卖出;单票仓位{pos};{stop}。用日线回测,参数放 PARAMS 方便调优。"
+    },
+    {
+      "id": "breakout",
+      "name": "量价突破",
+      "emoji": "🚀",
+      "category": "趋势波段",
+      "desc": "创新高+放量确认买入,跌破均线或固定止损离场。",
+      "fields": [
+        {"key": "window", "label": "新高窗口(日)", "type": "number", "value": "60"},
+        {"key": "vol_mult", "label": "放量倍数(相对均量)", "type": "text", "value": "2"},
+        {"key": "ma_exit", "label": "均线止损", "type": "text", "value": "跌破 20 日均线"},
+        {"key": "stop", "label": "固定止损", "type": "text", "value": "8%"},
+        {"key": "max_pos", "label": "最大持仓数", "type": "number", "value": "5"}
+      ],
+      "requirement": "量价突破策略:股价创{window}日新高且当日成交量大于20日均量{vol_mult}倍时买入;{ma_exit}或亏损{stop}卖出;最多持有{max_pos}只,标的为主板A股(排除ST)。"
+    },
+    {
+      "id": "bollinger",
+      "name": "布林带均值回归",
+      "emoji": "🔄",
+      "category": "趋势波段",
+      "desc": "触及下轨买入、回到中轨卖出,震荡市表现好。",
+      "fields": [
+        {"key": "symbol", "label": "标的", "type": "text", "value": "510300.SH"},
+        {"key": "period", "label": "布林周期", "type": "number", "value": "20"},
+        {"key": "k", "label": "带宽倍数K", "type": "text", "value": "2"},
+        {"key": "pos", "label": "仓位", "type": "text", "value": "50%"}
+      ],
+      "requirement": "布林带均值回归:标的{symbol},收盘价跌破{period}日布林下轨(K={k})买入,回到中轨卖出,仓位{pos};附加硬止损与最大持有天数保护。"
+    },
+    {
+      "id": "etf_rotate",
+      "name": "ETF 动量轮动",
+      "emoji": "🔁",
+      "category": "轮动对冲",
+      "desc": "定期比较一篮子ETF动量,持有最强者,全弱则空仓。",
+      "fields": [
+        {"key": "etfs", "label": "ETF池", "type": "text", "value": "510300.SH 沪深300, 510500.SH 中证500, 588000.SH 科创50, 159915.SZ 创业板, 518880.SH 黄金"},
+        {"key": "window", "label": "动量窗口(日)", "type": "number", "value": "20"},
+        {"key": "freq", "label": "调仓频率", "type": "select", "options": ["每周五", "每月首个交易日", "每日"], "value": "每周五"},
+        {"key": "cash_rule", "label": "空仓条件", "type": "text", "value": "所有ETF动量为负"}
+      ],
+      "requirement": "ETF动量轮动:标的池{etfs};{freq}收盘前比较{window}日涨幅,满仓持有最强ETF;{cash_rule}时清仓;换仓时才交易,减少摩擦。"
+    },
+    {
+      "id": "industry_rotate",
+      "name": "行业板块轮动",
+      "emoji": "🏭",
+      "category": "轮动对冲",
+      "desc": "按板块动量打分,持有最强N个行业对应的ETF或龙头。",
+      "fields": [
+        {"key": "industries", "label": "行业池(板块名或代码)", "type": "text", "value": "券商/银行/半导体/医药/白酒/新能源(用对应ETF代表)"},
+        {"key": "window", "label": "动量窗口", "type": "text", "value": "近 20 日"},
+        {"key": "hold_n", "label": "持有前N强", "type": "number", "value": "2"},
+        {"key": "freq", "label": "调仓频率", "type": "text", "value": "每周"}
+      ],
+      "requirement": "行业轮动策略:行业池{industries};{freq}按{window}涨幅打分,等权持有前{hold_n}强行业对应标的;末位淘汰、首位补入。"
+    },
+    {
+      "id": "grid",
+      "name": "经典网格交易",
+      "emoji": "🕸️",
+      "category": "网格套利",
+      "desc": "围绕基准价跌买涨卖,适合震荡ETF,参数全可调。",
+      "fields": [
+        {"key": "symbol", "label": "标的", "type": "text", "value": "512880.SH 证券ETF"},
+        {"key": "base", "label": "基准价", "type": "text", "value": "自动取当前价"},
+        {"key": "step", "label": "网格步长", "type": "text", "value": "1.5%"},
+        {"key": "per_grid", "label": "每格资金", "type": "text", "value": "5000 元"},
+        {"key": "range", "label": "网格上下限", "type": "text", "value": "基准价 ±20%"}
+      ],
+      "requirement": "网格交易:标的{symbol},{base};每跌{step}买入一格(每格{per_grid}),每涨{step}卖出一格;范围{range},突破上下限停止开新格;记录网格状态防止重复挂单。"
+    },
+    {
+      "id": "reverse_repo",
+      "name": "尾盘逆回购理财",
+      "emoji": "💰",
+      "category": "网格套利",
+      "desc": "收盘前把闲置资金买入国债逆回购,空闲资金不浪费。",
+      "fields": [
+        {"key": "time", "label": "执行时间", "type": "text", "value": "14:45"},
+        {"key": "symbol", "label": "逆回购代码", "type": "text", "value": "204001.SH(GC001)"},
+        {"key": "min_rate", "label": "利率下限", "type": "text", "value": "年化 1%"},
+        {"key": "reserve", "label": "保留资金", "type": "text", "value": "1000 元"}
+      ],
+      "requirement": "尾盘资金管理:每交易日{time}查询可用资金,若逆回购利率≥{min_rate}则用可用资金减{reserve}后全仓买入{symbol};否则不操作;只买不卖(到期自动回款)。"
+    },
+    {
+      "id": "multi_factor",
+      "name": "多因子打分选股",
+      "emoji": "🧮",
+      "category": "选股工具",
+      "desc": "按多个因子对股票池打分排序,定期调仓持有前N名。",
+      "fields": [
+        {"key": "pool", "label": "股票池", "type": "text", "value": "沪深300成分股"},
+        {"key": "factors", "label": "因子及权重", "type": "text", "value": "20日涨幅40% + 量比30% + 换手率30%"},
+        {"key": "hold_n", "label": "持仓数", "type": "number", "value": "10"},
+        {"key": "freq", "label": "调仓频率", "type": "select", "options": ["每周", "每月", "每10个交易日"], "value": "每周"}
+      ],
+      "requirement": "多因子选股:股票池{pool};因子与权重:{factors};{freq}打分排序,等权持有前{hold_n}名并卖出跌出排名的持仓;排除ST与停牌。"
+    },
+    {
+      "id": "scheduled_rebalance",
+      "name": "定时目标持仓调仓",
+      "emoji": "📅",
+      "category": "选股工具",
+      "desc": "维护一份目标持仓清单,定时自动调到目标比例。",
+      "fields": [
+        {"key": "time", "label": "执行时间", "type": "text", "value": "14:50"},
+        {"key": "targets", "label": "目标持仓(代码 比例)", "type": "text", "value": "510300.SH 40%, 510500.SH 30%, 518880.SH 30%"},
+        {"key": "tol", "label": "偏离容忍度", "type": "text", "value": "±3%以内不动"}
+      ],
+      "requirement": "定时调仓:每交易日{time}把账户调到目标持仓:{targets};单只偏离目标比例小于{tol}时不交易;先卖后买保证资金可用,注意整手与最小申报限制。"
+    },
+    {
+      "id": "risk_sentinel",
+      "name": "持仓风控哨兵",
+      "emoji": "🛡️",
+      "category": "风控工具",
+      "desc": "实时监控已有持仓,触发风控线时报警或自动减仓,不主动开新仓。",
+      "fields": [
+        {"key": "stop", "label": "单票止损线", "type": "text", "value": "-8%"},
+        {"key": "drawdown", "label": "账户最大回撤", "type": "text", "value": "-10%"},
+        {"key": "action", "label": "触发动作", "type": "select", "options": ["仅报警日志", "自动市价减半", "自动清仓该票"], "value": "仅报警日志"},
+        {"key": "interval", "label": "检查间隔", "type": "text", "value": "每根1分钟K线"}
+      ],
+      "requirement": "持仓风控哨兵:{interval}检查一次全部持仓;单票亏损达{stop}、或账户回撤达{drawdown}时执行:{action};不主动开新仓;日志要包含触发原因与当时的持仓明细。"
+    },
+    {
+      "id": "etf_dca",
+      "name": "ETF 定投计划",
+      "emoji": "🗓️",
+      "category": "风控工具",
+      "desc": "固定周期固定金额买入,跌破网格价加倍投入。",
+      "fields": [
+        {"key": "symbol", "label": "标的", "type": "text", "value": "510300.SH"},
+        {"key": "freq", "label": "定投频率", "type": "text", "value": "每周二"},
+        {"key": "amount", "label": "每期金额", "type": "text", "value": "2000 元"},
+        {"key": "bonus", "label": "加倍条件", "type": "text", "value": "较近一年高点回撤超 20% 时投 2 倍"}
+      ],
+      "requirement": "ETF定投:每{freq}收盘前买入{symbol} {amount};{bonus}时金额翻倍;金额向下取整到100股的整数倍,资金不足跳过并记录。"
+    },
+    {
+      "id": "dragon_head",
+      "name": "情绪周期龙头择时",
+      "emoji": "🌊",
+      "category": "风控工具",
+      "desc": "基于涨停数据判定情绪周期,只控制总仓位开关,不选个股。",
+      "fields": [
+        {"key": "stages_cfg", "label": "阶段判定条件", "type": "text", "value": "涨停数/连板高度/炸板率/跌停数 四指标"},
+        {"key": "expo", "label": "各阶段仓位上限", "type": "text", "value": "启动25% 发酵60% 分歧15% 退潮0% 高潮30% 冰点0%"},
+        {"key": "output", "label": "输出方式", "type": "select", "options": ["仅日志提示", "与既有持仓联动减仓"], "value": "仅日志提示"}
+      ],
+      "requirement": "情绪周期择时:用{stages_cfg}把市场划为启动/发酵/高潮/分歧/退潮/冰点,各阶段总仓位上限:{expo};{output};用于给其他策略提供仓位开关参考。"
+    }
+  ]
+}

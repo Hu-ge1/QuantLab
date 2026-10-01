@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
+frontend-grid/node_modules/
+frontend-grid/dist/
+frontend-grid/*.tsbuildinfo
+
+# Runtime state and secrets
+backend/data/*.db
+backend/data/*.db-*
+backend/data/screener_snapshot.json
+backend/data/studio/bridge_state.json
+backend/data/studio/signals.json
+backend/data/studio/daily_reports.json
+backend/data/studio/ticks_history.json
+backend/data/studio/order_count.json
+backend/data/studio/command_queue.json
+backend/data/studio/risk_state.json
+backend/data/studio/trading_audit.json
+backend/data/studio/watchlist.json
+backend/data/studio/qmt_models.json
+backend/data/studio/history/
+backend/data/studio/backups/
+logs/
+
+# Local tooling
+.pytest_cache/
+.idea/
+.vscode/

@@ -1,0 +1,27 @@
+# 统一换行符，避免跨平台协作时提交出「整文件全变」的噪音 diff。
+#
+# 关键一条：Windows 批处理必须是 CRLF。LF 结尾的 .bat/.cmd 在只有简单命令时
+# 侥幸能跑，但一旦出现 goto / 标签 / 多行 if 块就会出错，而问题只在别人的机器
+# 上复现——所以这里强制固定下来。
+* text=auto eol=lf
+
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=lf
+*.sh  text eol=lf
+
+# QMT 策略源码在仓库里保持 UTF-8；安装到 QMT 时会由后端转成 GBK 写入，
+# 转换发生在部署环节，不影响仓库内的可读性。
+*.py   text eol=lf
+*.md   text eol=lf
+*.json text eol=lf
+*.css  text eol=lf
+
+# 二进制：不做换行符转换
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.zip  binary
+*.db   binary
