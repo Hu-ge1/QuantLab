@@ -1,4 +1,4 @@
-#coding:gbk
+# 源模板为 UTF-8；安装进 QMT 时由 qmt_bridge 转为 GBK 并补上 coding 声明。
 """QMT 可视化桥接策略
 
 在 QMT 客户端中运行本策略(实盘模式选择你的资金账号),它会:

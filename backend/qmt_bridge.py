@@ -756,6 +756,28 @@ def check_bridge_token(token_header: Optional[str]) -> bool:
     return token_header == token
 
 
+CODING_RE = re.compile(r"^#\s*coding[:=]\s*([\w-]+)", re.I)
+
+
+def encode_strategy_for_qmt(code: str) -> tuple[bytes, str]:
+    """把策略源码转成 QMT 能正确解析的字节。
+
+    仓库里的策略模板一律存 UTF-8（便于 diff、阅读与语法检查），但 QMT 的
+    策略解释器需要 GBK：源文件若没有编码声明，Python 3 会按 UTF-8 解码，
+    GBK 中文会变成乱码甚至直接 SyntaxError。
+
+    所以这里做两件事——尊重源码自带的 coding 声明；没有声明就补一条 GBK
+    声明再转码。这样模板可以在仓库里保持 UTF-8，装进 QMT 后仍然可运行。
+    """
+    m = CODING_RE.match(code.lstrip()[:60])
+    if m:
+        try:
+            return code.encode(m.group(1)), m.group(1)
+        except (UnicodeEncodeError, LookupError):
+            pass  # 声明与实际内容不符，退回 GBK 兜底
+    return ("#coding:gbk\n" + code).encode("gbk", errors="replace"), "gbk"
+
+
 def install_bridge() -> dict:
     """把桥接策略写入 QMT 策略目录：注入 BRIDGE_URL（本服务）与 BRIDGE_TOKEN。"""
     cfg = studio_cfg()
@@ -789,7 +811,8 @@ def install_bridge() -> dict:
             shutil.copyfile(fp, backup_path)
         except Exception:  # noqa: BLE001
             backup_path = ""
-    fp.write_bytes(code.encode("gbk", errors="replace"))
+    data, _encoding = encode_strategy_for_qmt(code)
+    fp.write_bytes(data)
     ok, msg = register_model(target_dir, filename[:-3])
     if ok:
         # 记入看门狗清单：QMT 客户端退出时会回写注册表覆盖我们的注册，
@@ -834,12 +857,7 @@ def save_to_qmt(body: dict) -> tuple[dict, int]:
         except Exception:  # noqa: BLE001
             backup_path = ""
 
-    m = re.match(r"^#\s*coding[:=]\s*([\w-]+)", code.lstrip()[:60], re.I)
-    encoding = m.group(1) if m else "gbk"
-    try:
-        data = code.encode(encoding)
-    except (UnicodeEncodeError, LookupError):
-        data = code.encode("gbk", errors="replace")
+    data, encoding = encode_strategy_for_qmt(code)
     fp.write_bytes(data)
 
     model_name = filename[:-3]
