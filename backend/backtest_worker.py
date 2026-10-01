@@ -12,8 +12,32 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from routes.strategy import BacktestParams, _run_backtest_local  # noqa: E402
 
 
+def _read_stdin_utf8() -> str:
+    """Read the parent's payload as UTF-8 regardless of the local code page.
+
+    ``python -I`` implies ``-E``, so ``PYTHONIOENCODING`` is ignored and
+    ``sys.stdin`` falls back to the platform ANSI code page (GBK on Chinese
+    Windows) with ``surrogateescape``. Reading the raw buffer keeps non-ASCII
+    strategy code intact instead of decoding it as the wrong charset.
+    """
+    buffer = getattr(sys.stdin, "buffer", None)
+    if buffer is not None:
+        return buffer.read().decode("utf-8")
+    return sys.stdin.read()
+
+
+def _force_utf8_std_streams() -> None:
+    """Keep diagnostics readable for the parent, which decodes output as UTF-8."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):  # pragma: no cover - unusual stream
+            pass
+
+
 def main() -> int:
-    payload = json.loads(sys.stdin.read())
+    _force_utf8_std_streams()
+    payload = json.loads(_read_stdin_utf8())
     result_path = Path(payload["result_path"])
     try:
         result = _run_backtest_local(
@@ -28,7 +52,13 @@ def main() -> int:
             "error": str(exc),
             "traceback": traceback.format_exc(limit=8),
         }
-    result_path.write_text(json.dumps(response, ensure_ascii=False), encoding="utf-8")
+    text = json.dumps(response, ensure_ascii=False)
+    # A lone surrogate can never be encoded to UTF-8. Replace it here so the
+    # parent receives a readable error instead of an opaque UnicodeEncodeError
+    # (or, worse, an empty result file).
+    result_path.write_text(
+        text.encode("utf-8", "replace").decode("utf-8"), encoding="utf-8",
+    )
     return 0 if response["ok"] else 1
 
 
