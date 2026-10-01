@@ -45,11 +45,12 @@ flowchart TB
 
 | 文件 | 位置 | 职责 |
 |---|---|---|
-| `启动 QuantLab.cmd` | 仓库根 | 仓库内启动入口，切 UTF-8 代码页后转 PowerShell |
-| `停止 QuantLab.cmd` | 仓库根 | 停止入口 |
-| `QuantLab 量化实验室.bat` | 桌面（分发副本） | 桌面启动入口，**多一层目录查找**，见 §1.7 |
-| `scripts/start.ps1` | 仓库 | 真正的启动逻辑：环境自检、依赖自装、拉起服务、健康探测、开浏览器 |
-| `scripts/stop.ps1` | 仓库 | 精确停服务（按命令行特征匹配，防误杀） |
+| `启动 QuantLab.cmd` | 仓库根 | Windows 启动入口，切 UTF-8 代码页后转 PowerShell |
+| `停止 QuantLab.cmd` | 仓库根 | Windows 停止入口 |
+| `QuantLab 量化实验室.bat` | 桌面（分发副本） | 桌面启动入口，**多一层目录查找**，见 §1.5 |
+| `scripts/start.ps1` | 仓库 | Windows 侧真正的启动逻辑：环境自检、依赖自装、拉起服务、健康探测、开浏览器 |
+| `scripts/stop.ps1` | 仓库 | Windows 侧精确停服务（按命令行特征匹配，防误杀） |
+| `start.sh` / `stop.sh` | 仓库根 | Git Bash / macOS / Linux 的等价实现，用 Python 自己做健康探测与端口探测（不依赖 `curl` / `lsof` / `netstat`） |
 
 ```mermaid
 sequenceDiagram
@@ -134,16 +135,21 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%START_SCRIPT%"
 
 这个「命令行特征匹配」是这里的核心安全阀：**只有确实是本项目、用本项目参数拉起来的进程才会被杀**。
 
-## 1.5 两个入口的差异
+## 1.5 三个入口的差异
 
-| | 仓库内 `启动 QuantLab.cmd` | 桌面 `QuantLab 量化实验室.bat` |
-|---|---|---|
-| 定位 | `%~dp0` 固定 | 先找同目录 `QuantLab\`，找不到回退桌面 |
-| 代码页 | `chcp 65001`（中文文件名友好） | 无 |
-| 预检 | 无，交给 `start.ps1` | 有：脚本存在性、PowerShell 存在性、目录可进入 |
-| 适用场景 | 开发者在仓库里直接用 | 分发给「只会双击」的用户 |
+| | `启动 QuantLab.cmd` | `QuantLab 量化实验室.bat` | `start.sh` |
+|---|---|---|---|
+| 平台 | Windows | Windows（分发副本） | Git Bash / macOS / Linux |
+| 定位 | `%~dp0` 固定 | 先找同目录 `QuantLab\`，找不到回退桌面 | 脚本自身所在目录 |
+| 代码页 | `chcp 65001`（中文文件名友好） | 无 | — |
+| 预检 | 无，交给 `start.ps1` | 有：脚本存在性、PowerShell 存在性、目录可进入 | 无，逻辑全在自身 |
+| 探测手段 | PowerShell：`Invoke-RestMethod` + `Get-NetTCPConnection` | 同 `.cmd` | 内嵌 Python：`urllib` 健康探测 + `socket` 端口探测 |
+| 停止可靠性 | 高（`Win32_Process.CommandLine` 精确匹配） | 高 | 中（依赖 `logs/server.pid`；Git Bash 无 `pgrep` 时兜底失效） |
+| 适用场景 | 开发者在仓库里直接用 | 分发给「只会双击」的用户 | 非 Windows 环境 |
 
 桌面版多做预检，是因为分发包的目录结构可能被用户挪动，**失败要说清楚原因**，不能在黑窗口里闪一下就没。
+
+`start.sh` 刻意不依赖 `curl` / `lsof` / `netstat`——这些工具在 macOS 与各 Linux 发行版上的可用性并不一致。既然 Python 本来就是硬性前置条件，健康探测和端口探测就用 Python 自己实现，少一类环境依赖。它额外支持 `QUANTLAB_PYTHON` 环境变量指定解释器，应对 PATH 上有多个 Python 的情况（conda、便携版、系统版混用），避免依赖装进错的环境。
 
 ## 1.6 这套设计挡住了什么
 
@@ -157,6 +163,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%START_SCRIPT%"
 | 停止时误杀别的程序 | 命令行特征匹配才杀 |
 | 改了全局 PowerShell 执行策略 | 只用 `-ExecutionPolicy Bypass` 单次生效 |
 | 关掉黑窗口服务就没了 | `Start-Process` 独立进程，与启动器解耦 |
+| 别人在 macOS/Linux 提交了 LF 换行符的批处理 | `.gitattributes` 强制 `*.bat` / `*.cmd` 为 CRLF |
+| PATH 上有多个 Python，依赖装进错的环境 | `start.sh` 支持 `QUANTLAB_PYTHON` 指定解释器 |
 
 > **仍然存在的边界**：服务是独立进程但**没有开机自启**，重启电脑需要重新双击；也没有服务化（Windows Service / systemd）封装。这是有意的——本地研究工具，用户应该能一眼看到它什么时候在跑。
 
@@ -528,7 +536,9 @@ threading.Thread(target=qmt_bridge.registry_watchdog, daemon=True).start()
 
 **② 备份旧版**：如果目标文件已存在，先拷到 `data/studio/backups/QMT可视化桥接_YYYYmmdd_HHMMSS.py`。
 
-**③ 按 GBK 写入**：`fp.write_bytes(code.encode("gbk", errors="replace"))`。QMT 的策略解释器对 UTF-8 中文字符串字面量支持不可靠，GBK 是本机的实际约定（源码首行也是 `#coding:gbk`）。
+**③ 按 GBK 写入**：`fp.write_bytes(code.encode("gbk", errors="replace"))`。QMT 的策略解释器对 UTF-8 中文字符串字面量支持不可靠，GBK 是本机的实际约定。
+
+> 注意编码是在**部署环节**才变的：仓库里的 `QMT可视化桥接.py` 是 UTF-8（可读、可 diff、跨平台），写进 QMT 目录时转成 GBK，首行 `#coding:gbk` 随之生效。所以改桥接脚本时在仓库内按 UTF-8 编辑即可，不需要手动转码。
 
 **④ 注册模型**：调 `register_model()` 写进 `indexUserConfig.xml`。
 
@@ -634,58 +644,76 @@ logs/
 
 覆盖面是够的：运行态数据、密钥库、日志、备份、策略历史都已排除。
 
-## 3.3 开源前仍建议处理的三处
+**本次补上的一处缺口**：`.gitignore` 原本只写了 `frontend/dist/`，漏了 `frontend-grid/dist/`——首次提交前扫描发现那里有 5 个构建产物会被纳入。`frontend-grid/` 本身**只有 `dist/`，没有源码**（网格页早已并入 `frontend/src/pages/GridPage.tsx`），是个陈旧产物目录，现已按 `frontend/` 的同样规则忽略。
 
-这三处不是 `.gitignore` 能解决的，它们在**被跟踪的源码里**：
+> 顺带一提：`frontend-grid/` 这个目录现在没有任何用处（无源码、无 `package.json`，产物也不被使用），你确认后可以直接删掉它——但这是清理动作，我没有替你动。
 
-**① 硬编码的券商路径（两处）**
+**换行符**：另加了 `.gitattributes`，强制 `*.bat` / `*.cmd` 为 CRLF、其余文本为 LF。原来两个 `.cmd` 在磁盘上是 LF——简单批处理侥幸能跑，但一旦脚本里出现 `goto` / 标签 / 多行 `if`，LF 结尾就会让 cmd.exe 出错，而且**只在别人的 Windows 上复现**。这类问题让贡献者踩一次就很难查，所以在仓库层面固定下来更省事。
 
-```python
-# backend/qmt_bridge.py:46
-DEFAULT_QMT_PYTHON_DIR = r"D:\<券商名>QMT实盘_交易\python"
+## 3.3 已完成的脱敏：三处硬编码路径
 
-# backend/qmt_client.py:29
-DEFAULT_QMT_INSTALL = r"D:\<券商名>QMT实盘_交易"
-```
+这三处 `.gitignore` 覆盖不到——它们在被跟踪的**源码**里。现已改为环境变量读取，并补上空值守卫。
 
-建议改为中性占位或从配置读取：
+**① ② 券商路径（两处）**
 
-```python
-DEFAULT_QMT_PYTHON_DIR = os.environ.get("QMT_PYTHON_DIR", "")
-DEFAULT_QMT_INSTALL = os.environ.get("QMT_INSTALL_DIR", "")
-```
+| 位置 | 改前 | 改后 |
+|---|---|---|
+| `qmt_bridge.py` | `r"D:\<券商名>QMT实盘_交易\python"` | `os.environ.get("QUANTLAB_QMT_PYTHON_DIR", "").strip()` |
+| `qmt_client.py` | `r"D:\<券商名>QMT实盘_交易"` | `os.environ.get("QUANTLAB_QMT_INSTALL_DIR", "").strip()` |
 
-并保留在设置页填写的能力（本来就有）。**顺带的好处**：换券商、换机器的人不用改源码。
+解析优先级统一为 **设置里的值 → 环境变量 → 空（未配置）**，并新增 `qmt_strategy_dir()` 作为取策略目录的唯一入口。
 
-**② 迁移源的绝对路径**
+**为什么必须专门做这个函数**：把空字符串直接喂给 `Path(...).is_dir()` 是危险的——`Path("")` 等价于**当前目录**，`is_dir()` 会返回 `True`。改造前 `install_bridge()` 写的是 `cfg.get("qmt_python_dir") or DEFAULT_QMT_PYTHON_DIR`，两边都为空时会把桥接策略文件**写进 backend/ 或仓库根目录**，还会跑去当前目录找 `config/indexUserConfig.xml`。现在空值在函数里被收敛成明确的「未配置」，`install_bridge()` / `register_model()` / `sync_registry()` 三处都会安全退出并给出可操作提示。
+
+**③ 迁移源的个人路径**
 
 ```python
-# backend/qmt_bridge.py:117
+# 改前
 legacy_dir = Path(r"C:\Users\<用户名>\<工具目录>\workspace\default\qmt-strategy-studio")
+
+# 改后
+legacy_root = os.environ.get("QUANTLAB_LEGACY_STUDIO_DIR", "").strip()
+if not legacy_root:
+    return info          # 未设置就直接跳过
 ```
 
-这段是给自己从旧 studio 迁移用的一次性代码。开源时应该**整个 `migrate_from_legacy()` 移出主仓库**，或者改成读环境变量 / 干脆删掉。它暴露了用户名和内部工作目录结构。
+它暴露的是用户名 + 内部工作目录结构，且只对原作者有意义。不设这个变量时迁移逻辑完全静默跳过，对使用者零影响。
 
-**③ 默认配置里的账号字段**
-
-`DEFAULT_STUDIO_CFG` 里 `qmt_account_id: ""` 是空的，没问题。但要确认**没有把本机的 `settings` 表或 `bridge_state.json` 提交上去**——`.gitignore` 已覆盖，建议发布前再跑一次全历史扫描确认无泄漏。
+> 附带好处：换券商、换机器的人从此不用改源码——填设置或设环境变量即可。
 
 ## 3.4 发布前的自查命令
 
 ```bash
-# 1. 确认敏感文件没被跟踪
-git ls-files | grep -E "\.db$|studio/.*\.json$|logs/"
+# 1. 确认敏感文件没被跟踪（应无输出）
+git ls-files | grep -E "\.db$|studio/(bridge_state|signals|daily_reports|ticks_history|order_count|command_queue|risk_state|trading_audit|watchlist|qmt_models)\.json$|^logs/|node_modules|/dist/"
 
-# 2. 全历史扫描可疑字符串（含已删除的提交）
+# 2. 全历史扫描可疑字符串（含已删除的提交）—— 最关键的一条
 git log -p --all | grep -nE "<券商名>|bridge_token|api_key|sk-[A-Za-z0-9]{20,}" | head -40
 
-# 3. 确认 .gitignore 生效
-git status --ignored | grep -E "data/|logs/"
+# 3. 确认忽略规则生效（应列出 data/ 与 logs/ 下的运行态文件）
+git status --ignored --short | grep -E "data/|logs/"
+
+# 4. 确认源码里没有残留的本机绝对路径
+grep -rnE "[A-Za-z]:\\\\Users\\\\|<券商名>|\<工具目录>" backend/ --include="*.py"
 ```
 
-第 2 条最关键——**密码泄漏要看历史，不只看工作区**。如果扫出东西，正确顺序是：先去平台**作废/轮换**那个密钥，再用 `git filter-repo` 或 BFG 清历史。
+第 2 条最关键——**密钥泄漏要看历史，不只看工作区**。如果扫出东西，正确顺序是：先去平台**作废/轮换**那个密钥，再用 `git filter-repo` 或 BFG 清历史。
 
-## 3.5 建议在文档里保留的风险声明
+首次提交前这四条均已跑过，结果为：待纳入的 92 个文件中无 `.db` / 运行态 JSON / 日志 / `node_modules` / `dist`，源码内无本机绝对路径残留。
+
+## 3.5 仓库当前状态
+
+| 项 | 状态 |
+|---|---|
+| 独立仓库 | 已在项目目录 `git init`（分支 `main`），不再受 C 盘根目录误建仓库影响 |
+| 首次提交 | 已完成，92 个文件 |
+| `.gitattributes` | 已加：`*.bat` / `*.cmd` 强制 CRLF，其余文本 LF |
+| 远程仓库 | **尚未配置** — 需要你先在 GitHub 建空仓库（不要勾选 Add README / .gitignore / license），再 `git remote add origin` |
+| LICENSE | 已加 MIT（署名 `QuantLab Contributors`） |
+
+> **一个需要留意的小坑**：本机 `C:\.git` 存在一个空仓库（0 提交、无 remote），是早前在 C 盘根目录误执行 `git init` 留下的。在项目目录内的 git 操作现在完全独立、不受它影响；但在 `C:\` 下执行任何 git 命令仍会落到那个仓库上，建议不要在 C 盘根目录用 git。是否清理由你决定——它 0 个提交，删除不会丢任何东西。
+
+## 3.6 建议在文档里保留的风险声明
 
 桥接层包含**真实下单能力**，README 和本文档都应保留明确警告。核心三点：
 
