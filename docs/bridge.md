@@ -644,9 +644,7 @@ logs/
 
 覆盖面是够的：运行态数据、密钥库、日志、备份、策略历史都已排除。
 
-**本次补上的一处缺口**：`.gitignore` 原本只写了 `frontend/dist/`，漏了 `frontend-grid/dist/`——首次提交前扫描发现那里有 5 个构建产物会被纳入。`frontend-grid/` 本身**只有 `dist/`，没有源码**（网格页早已并入 `frontend/src/pages/GridPage.tsx`），是个陈旧产物目录，现已按 `frontend/` 的同样规则忽略。
-
-> 顺带一提：`frontend-grid/` 这个目录现在没有任何用处（无源码、无 `package.json`，产物也不被使用），你确认后可以直接删掉它——但这是清理动作，我没有替你动。
+**曾发现并已消除的一处缺口**：`.gitignore` 原本只写了 `frontend/dist/`，漏了 `frontend-grid/dist/`——首次提交前扫描发现那里有 5 个构建产物（1.2 MB）会被纳入。`frontend-grid/` 本身**只有 `dist/`，没有源码、没有 `package.json`**（网格页早已并入 `frontend/src/pages/GridPage.tsx`），且全仓库无任何引用，属于陈旧产物目录。该目录已连同 `.gitignore` 里的对应规则一并移除，不再存在。
 
 **换行符**：另加了 `.gitattributes`，强制 `*.bat` / `*.cmd` 为 CRLF、其余文本为 LF。原来两个 `.cmd` 在磁盘上是 LF——简单批处理侥幸能跑，但一旦脚本里出现 `goto` / 标签 / 多行 `if`，LF 结尾就会让 cmd.exe 出错，而且**只在别人的 Windows 上复现**。这类问题让贡献者踩一次就很难查，所以在仓库层面固定下来更省事。
 
@@ -695,11 +693,16 @@ git status --ignored --short | grep -E "data/|logs/"
 
 # 4. 确认源码里没有残留的本机绝对路径
 grep -rnE "[A-Za-z]:\\\\Users\\\\|<券商名>|\<工具目录>" backend/ --include="*.py"
+
+# 5. 确认提交身份没泄漏真实邮箱（应只剩 noreply 形式）
+git log --all --format='%an <%ae> %cn <%ce>' | sort -u
 ```
 
 第 2 条最关键——**密钥泄漏要看历史，不只看工作区**。如果扫出东西，正确顺序是：先去平台**作废/轮换**那个密钥，再用 `git filter-repo` 或 BFG 清历史。
 
-首次提交前这四条均已跑过，结果为：待纳入的 92 个文件中无 `.db` / 运行态 JSON / 日志 / `node_modules` / `dist`，源码内无本机绝对路径残留。
+第 5 条同样容易漏：**邮箱会写进每一个提交对象，一旦推送就公开且无法撤回**。要改必须在首次推送之前，用 `git filter-branch --env-filter` 或 `git filter-repo` 重写历史；改完还要清掉 `refs/original` 备份引用并 `git gc`，否则旧提交仍可被翻出来。更省事的做法是在 GitHub 账号设置里开启 *Keep my email addresses private*，直接用平台给你的 noreply 地址作为提交邮箱。
+
+首次提交前上述检查均已跑过，结果为：待纳入的 92 个文件中无 `.db` / 运行态 JSON / 日志 / `node_modules` / `dist`，源码内无本机绝对路径残留，提交身份为 noreply 邮箱。
 
 ## 3.5 仓库当前状态
 
@@ -707,11 +710,15 @@ grep -rnE "[A-Za-z]:\\\\Users\\\\|<券商名>|\<工具目录>" backend/ --includ
 |---|---|
 | 独立仓库 | 已在项目目录 `git init`（分支 `main`），不再受 C 盘根目录误建仓库影响 |
 | 首次提交 | 已完成，92 个文件 |
+| 提交身份 | 作者/提交者邮箱已改为 GitHub noreply 形式（`<用户名>@users.noreply.github.com`），真实邮箱不进提交历史 |
 | `.gitattributes` | 已加：`*.bat` / `*.cmd` 强制 CRLF，其余文本 LF |
 | 远程仓库 | **尚未配置** — 需要你先在 GitHub 建空仓库（不要勾选 Add README / .gitignore / license），再 `git remote add origin` |
 | LICENSE | 已加 MIT（署名 `QuantLab Contributors`） |
+| `frontend-grid/` | 已清理（只有陈旧构建产物、无源码、无引用），`.gitignore` 中对应规则同步移除 |
 
-> **一个需要留意的小坑**：本机 `C:\.git` 存在一个空仓库（0 提交、无 remote），是早前在 C 盘根目录误执行 `git init` 留下的。在项目目录内的 git 操作现在完全独立、不受它影响；但在 `C:\` 下执行任何 git 命令仍会落到那个仓库上，建议不要在 C 盘根目录用 git。是否清理由你决定——它 0 个提交，删除不会丢任何东西。
+> **已排查并处理的一处环境隐患**：本机 `C:\` 根目录曾存在一个误建的 `.git`（在 C 盘根目录误执行 `git init` 所致）。核查结果：**0 个提交、`objects/` 为 0 字节、`refs/` 为空、无 remote**；仅有的一条 worktree 注册指向一个**早已删除的临时目录**，另有一个僵尸 `index.lock`。该目录已移出（备份保留在仓库之外，可随时恢复），C 盘根目录现在不再是 git 仓库。
+>
+> 之所以要处理它：只要它还在，在 `C:\` 下执行任何 git 命令都会落到这个空仓库上；而项目仓库如果是它的子目录，`git add .` 还会去扫整块盘。判断某个 `.git` 能不能清，看四点即可——**提交数、`objects/` 体积、`refs/` 是否有内容、有无 remote**。
 
 ## 3.6 建议在文档里保留的风险声明
 
