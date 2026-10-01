@@ -589,6 +589,19 @@ def screen(filters: dict, force: bool = False) -> dict:
                 "rate": round(valid / financial_denominator * 100, 1),
             }
     warnings = ["缺失字段不补零，相关因子记为0并保留原始空值", "短期强度不是中长期动量，不构成买卖建议"]
+    if rows and not coverage["ma60"]["rate"]:
+        # 降级行情源（腾讯批量快照）不含均线；此时任何趋势类筛选条件都必然命中 0，
+        # 必须说清楚原因，否则用户只会看到一个空结果列表而不知道是哪一步出了问题。
+        picked = [name for key, name in (("above_ma60", "仅保留站上 MA60"), ("strict_uptrend", "严格多头排列")) if filters.get(key)]
+        message = (
+            "本次行情源不含均线字段（MA60/120/250 覆盖率为 0），趋势类因子全部记 0、"
+            "趋势阶段统一显示「均线数据不足」"
+        )
+        if picked:
+            message += f"；你勾选的「{'、'.join(picked)}」依赖均线，因此本次命中为 0，取消勾选或配置 FFD 数据源后重试"
+        else:
+            message += "；如需趋势筛选，请配置 FFD 数据源后重试"
+        warnings.append(message)
     if financial_effective:
         warnings.append(f"财务质量仅对行情预筛前{financial_denominator}只执行单批PIT补全，报告期为{financial_coverage.get('report_period')}，不是全市场财务穷举")
     if disabled_financial_factors:
